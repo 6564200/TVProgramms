@@ -57,7 +57,7 @@ def sendSFTP():
     cnopts.hostkeys = None
 
     try:
-        srv = pysftp.Connection(host="193.107.237.33", username="channel4", password="Import1", cnopts=cnopts)
+        srv = pysftp.Connection(host="193.107.237.33", username="****", password="****", cnopts=cnopts)
         srv.put("p_p" + (datetime.now()).strftime('%m_%d_%Y') + ".xml", 'app/web/uploads/programa_peredach.xml')
         srv.close()
     except:
