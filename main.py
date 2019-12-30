@@ -1,4 +1,3 @@
-
 import xml.etree.cElementTree as ET
 import os
 import sys
@@ -8,7 +7,6 @@ import pysftp
 from datetime import datetime, timedelta
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QTableWidgetItem
-
  
 # Импортируем форму.
 from proba import Ui_MainWindow
@@ -16,7 +14,7 @@ import sys
 
 DAY = [ "Понедельник", "Вторник", "Среда", "Чертверг", "Пятница", "Суббота", "Воскресение" ]
 Columns = ('Date', 'Time', 'Name', 'Age')
-TVPrograms = ET.Element("TVPrograms")
+#TVPrograms = ET.Element("TVPrograms")
 rar = " "
 
 def date_time_rar(Rfile): ## дата упаковки файла 
@@ -27,27 +25,6 @@ def date_time_rar(Rfile): ## дата упаковки файла
     datetime_Rfile = datetime.strptime(str(Day)+"/"+str(Month)+"/"+str(Yaer)+" 10:00:00", '%d/%m/%Y %H:%M:%S')
     print("Date add file in rarfile: " + datetime_Rfile.strftime("%d-%m-%Y"))
     return(datetime_Rfile)
-
-def create_tree(txt, we, now):
-    week = now.isoweekday() ## день недели даты архива
-    tl = txt.splitlines() ## на множество строк
-    del tl[0]
-    td = timedelta(days=we-week+8) ## понедельник ... вс следующей недели
-    d_date = now + td
-    #print("Create XML element <TVDay><Date> " + d_date.strftime("%d-%m-%Y"))
-
-    TVDay = ET.SubElement(TVPrograms, "TVDay")
-    ET.SubElement(TVDay, "Date").text = d_date.strftime("%d-%m-%Y")
-    TVList = ET.SubElement(TVDay, "TVList")
-
-    for line in tl:
-        if line != '':
-            TVProgram = ET.SubElement(TVList, "TVProgram")
-            ET.SubElement(TVProgram, "Time").text = line[:5]
-            ET.SubElement(TVProgram, "ProgramName").text = line[6:-4]
-            ET.SubElement(TVProgram, "ProgramAge").text = line[-3:]
-   
-    return ET.ElementTree(TVPrograms)
     
 def sendSFTP():
     print("Send to site channel4.ru")
@@ -71,8 +48,6 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setAcceptDrops(True)
-
-        self.ui.tableWidget.installEventFilters(self)
  
         self.ui.tableWidget.setColumnCount(len(Columns))
         self.ui.tableWidget.setRowCount(1)
@@ -85,6 +60,28 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.actionExit.triggered.connect(self.MenuExitClicked)
         self.ui.pushButtonExit.clicked.connect(self.MenuExitClicked)
 
+    def create_tree(self, txt, we, now):
+
+        week = now.isoweekday() ## день недели даты архива
+        tl = txt.splitlines() ## на множество строк
+        del tl[0]
+        td = timedelta(days=we-week+8) ## понедельник ... вс следующей недели
+        d_date = now + td
+        #print("Create XML element <TVDay><Date> " + d_date.strftime("%d-%m-%Y"))
+
+        TVDay = ET.SubElement(mywindow.tree, "TVDay")
+        ET.SubElement(TVDay, "Date").text = d_date.strftime("%d-%m-%Y")
+        TVList = ET.SubElement(TVDay, "TVList")
+
+        for line in tl:
+          if line != '':
+            TVProgram = ET.SubElement(TVList, "TVProgram")
+            ET.SubElement(TVProgram, "Time").text = line[:5]
+            ET.SubElement(TVProgram, "ProgramName").text = line[6:-4]
+            ET.SubElement(TVProgram, "ProgramAge").text = line[-3:]
+   
+        return True
+
     def eventFilter(self, source, event):
         if (event.type() == QtCore.QEvent.KeyPress and
             event.matches(QtGui.QKeySequence.Copy)):
@@ -95,7 +92,9 @@ class mywindow(QtWidgets.QMainWindow):
     def read_XML(self):
 
         dat = []
-        root = mywindow.tree.getroot()
+        
+        root = mywindow.tree
+        
         for TVDay in root.findall('TVDay'):
             date = TVDay.find('Date').text
 
@@ -105,7 +104,8 @@ class mywindow(QtWidgets.QMainWindow):
                     b = tvprogram.find('ProgramName').text
                     c = tvprogram.find('ProgramAge').text
                     dat.append((date, a, b, c))
-        
+                    
+        print(dat)
         row = 0
         for tup in dat:
             col = 0
@@ -129,7 +129,15 @@ class mywindow(QtWidgets.QMainWindow):
         dt_rar = date_time_rar(zf)
         self.ui.label.setText("Загружен: " + frar + " от " + str(dt_rar)[:-9])
 
+        if len(mywindow.tree.findall('TVDay')) > 0:
+            mywindow.tree.clear()
+            print(self.ui.tableWidget.rowCount())
+            for rPos in range(self.ui.tableWidget.rowCount()):
+                print(rPos)
+                self.ui.tableWidget.removeRow(1)                                                        
 
+
+        
         count = 0
         we = 0
         for name in zf.namelist():
@@ -142,12 +150,14 @@ class mywindow(QtWidgets.QMainWindow):
             
             if enc and enc.lower() != "utf-8":
               text = text.decode(enc)
-              #text = text.encode("utf-8")
-            
-            mywindow.tree = create_tree(text, we, dt_rar)
+              
+            mywindow.tree.clear()
+            self.create_tree(text, we, dt_rar)
             
             we += 1
             count += 1
+            
+        print(mywindow.tree.tag)
         self.read_XML()
 
     def MenuExitClicked(self):
